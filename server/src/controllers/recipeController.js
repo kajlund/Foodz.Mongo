@@ -1,4 +1,5 @@
 import recipeService from '../services/recipeService.js';
+import { sendSuccess } from '../utils/response.js';
 
 /**
  * RecipeController handles HTTP Request/Response translation layer.
@@ -11,8 +12,8 @@ import recipeService from '../services/recipeService.js';
 export const createRecipe = async (req, res, next) => {
   try {
     const recipe = await recipeService.createRecipe(req.body);
-    res.status(201).json({
-      success: true,
+    return sendSuccess(res, {
+      statusCode: 201,
       data: recipe,
     });
   } catch (error) {
@@ -27,11 +28,13 @@ export const createRecipe = async (req, res, next) => {
 export const getRecipes = async (req, res, next) => {
   try {
     const result = await recipeService.getRecipes(req.query);
-    res.status(200).json({
-      success: true,
-      count: result.recipes.length,
-      pagination: result.pagination,
+    return sendSuccess(res, {
+      statusCode: 200,
       data: result.recipes,
+      meta: {
+        count: result.recipes.length,
+        pagination: result.pagination,
+      },
     });
   } catch (error) {
     next(error);
@@ -45,12 +48,14 @@ export const getRecipes = async (req, res, next) => {
 export const searchRecipes = async (req, res, next) => {
   try {
     const result = await recipeService.searchRecipes(req.query);
-    res.status(200).json({
-      success: true,
-      query: result.query,
-      count: result.recipes.length,
-      pagination: result.pagination,
+    return sendSuccess(res, {
+      statusCode: 200,
       data: result.recipes,
+      meta: {
+        query: result.query,
+        count: result.recipes.length,
+        pagination: result.pagination,
+      },
     });
   } catch (error) {
     next(error);
@@ -64,8 +69,8 @@ export const searchRecipes = async (req, res, next) => {
 export const getRecipeById = async (req, res, next) => {
   try {
     const recipe = await recipeService.getRecipeById(req.params.id);
-    res.status(200).json({
-      success: true,
+    return sendSuccess(res, {
+      statusCode: 200,
       data: recipe,
     });
   } catch (error) {
@@ -80,8 +85,8 @@ export const getRecipeById = async (req, res, next) => {
 export const updateRecipe = async (req, res, next) => {
   try {
     const recipe = await recipeService.updateRecipe(req.params.id, req.body);
-    res.status(200).json({
-      success: true,
+    return sendSuccess(res, {
+      statusCode: 200,
       data: recipe,
     });
   } catch (error) {
@@ -96,8 +101,8 @@ export const updateRecipe = async (req, res, next) => {
 export const deleteRecipe = async (req, res, next) => {
   try {
     await recipeService.deleteRecipe(req.params.id);
-    res.status(200).json({
-      success: true,
+    return sendSuccess(res, {
+      statusCode: 200,
       message: 'Recipe successfully deleted',
       data: {},
     });

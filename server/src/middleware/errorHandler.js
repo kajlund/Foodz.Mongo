@@ -1,4 +1,5 @@
 import { CustomError } from '../errors.js';
+import { sendError } from '../utils/response.js';
 
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
@@ -12,8 +13,8 @@ const errorHandler = (err, req, res, next) => {
 
   // Handle custom domain errors (NotFoundError, BadRequestError, etc.)
   if (err instanceof CustomError || err.statusCode) {
-    return res.status(err.statusCode || 500).json({
-      success: false,
+    return sendError(res, {
+      statusCode: err.statusCode || 500,
       error: err.message,
     });
   }
@@ -21,23 +22,23 @@ const errorHandler = (err, req, res, next) => {
   // Mongoose Bad ObjectId (CastError)
   if (err.name === 'CastError') {
     const message = `Resource not found. Invalid field: ${err.path}`;
-    return res.status(404).json({ success: false, error: message });
+    return sendError(res, { statusCode: 404, error: message });
   }
 
   // Mongoose Validation Error
   if (err.name === 'ValidationError') {
     const message = Object.values(err.errors).map((val) => val.message);
-    return res.status(400).json({ success: false, error: message });
+    return sendError(res, { statusCode: 400, error: message });
   }
 
   // Mongoose Duplicate Key Error
   if (err.code === 11000) {
     const message = 'Duplicate field value entered';
-    return res.status(400).json({ success: false, error: message });
+    return sendError(res, { statusCode: 400, error: message });
   }
 
-  res.status(error.statusCode || 500).json({
-    success: false,
+  return sendError(res, {
+    statusCode: error.statusCode || 500,
     error: error.message || 'Server Error',
   });
 };
