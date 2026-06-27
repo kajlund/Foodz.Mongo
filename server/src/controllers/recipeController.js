@@ -1,8 +1,8 @@
-import Recipe from '../models/Recipe.js';
-import mongoose from 'mongoose';
+import recipeService from '../services/recipeService.js';
 
-// Helper to validate Mongo ObjectId
-const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+/**
+ * RecipeController handles HTTP Request/Response translation layer.
+ */
 
 /**
  * @desc    Create a new recipe
@@ -10,17 +10,7 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
  */
 export const createRecipe = async (req, res, next) => {
   try {
-    const recipeData = req.body;
-
-    // Ensure ingredients & instructions are sorted by 'pos' if provided
-    if (Array.isArray(recipeData.ingredients)) {
-      recipeData.ingredients.sort((a, b) => (a.pos || 0) - (b.pos || 0));
-    }
-    if (Array.isArray(recipeData.instructions)) {
-      recipeData.instructions.sort((a, b) => (a.pos || 0) - (b.pos || 0));
-    }
-
-    const recipe = await Recipe.create(recipeData);
+    const recipe = await recipeService.createRecipe(req.body);
     res.status(201).json({
       success: true,
       data: recipe,
@@ -36,44 +26,12 @@ export const createRecipe = async (req, res, next) => {
  */
 export const getRecipes = async (req, res, next) => {
   try {
-    const { userID, tag, isPublic, page = 1, limit = 10, sort = '-createdAt' } = req.query;
-
-    const query = {};
-
-    if (userID) {
-      if (!isValidObjectId(userID)) {
-        return res.status(400).json({ success: false, error: 'Invalid userID format' });
-      }
-      query.userID = userID;
-    }
-
-    if (tag) {
-      query.tags = tag;
-    }
-
-    if (isPublic !== undefined) {
-      query.isPublic = isPublic === 'true';
-    }
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    const total = await Recipe.countDocuments(query);
-    const recipes = await Recipe.find(query)
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum);
-
+    const result = await recipeService.getRecipes(req.query);
     res.status(200).json({
       success: true,
-      count: recipes.length,
-      pagination: {
-        total,
-        page: pageNum,
-        pages: Math.ceil(total / limitNum) || 1,
-      },
-      data: recipes,
+      count: result.recipes.length,
+      pagination: result.pagination,
+      data: result.recipes,
     });
   } catch (error) {
     next(error);
@@ -86,45 +44,13 @@ export const getRecipes = async (req, res, next) => {
  */
 export const searchRecipes = async (req, res, next) => {
   try {
-    const { q, page = 1, limit = 10 } = req.query;
-
-    if (!q || q.trim() === '') {
-      return res.status(400).json({ success: false, error: 'Search query parameter (q) is required' });
-    }
-
-    const searchRegex = new RegExp(q.trim(), 'i');
-
-    // Search using regex match on key fields
-    const searchQuery = {
-      $or: [
-        { name: searchRegex },
-        { description: searchRegex },
-        { tags: searchRegex },
-        { 'ingredients.name': searchRegex },
-        { by: searchRegex },
-      ],
-    };
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    const total = await Recipe.countDocuments(searchQuery);
-    const recipes = await Recipe.find(searchQuery)
-      .sort('-createdAt')
-      .skip(skip)
-      .limit(limitNum);
-
+    const result = await recipeService.searchRecipes(req.query);
     res.status(200).json({
       success: true,
-      query: q,
-      count: recipes.length,
-      pagination: {
-        total,
-        page: pageNum,
-        pages: Math.ceil(total / limitNum) || 1,
-      },
-      data: recipes,
+      query: result.query,
+      count: result.recipes.length,
+      pagination: result.pagination,
+      data: result.recipes,
     });
   } catch (error) {
     next(error);
@@ -137,18 +63,7 @@ export const searchRecipes = async (req, res, next) => {
  */
 export const getRecipeById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid Recipe ID format' });
-    }
-
-    const recipe = await Recipe.findById(id);
-
-    if (!recipe) {
-      return res.status(404).json({ success: false, error: 'Recipe not found' });
-    }
-
+    const recipe = await recipeService.getRecipeById(req.params.id);
     res.status(200).json({
       success: true,
       data: recipe,
@@ -164,30 +79,7 @@ export const getRecipeById = async (req, res, next) => {
  */
 export const updateRecipe = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid Recipe ID format' });
-    }
-
-    const updateData = req.body;
-
-    if (Array.isArray(updateData.ingredients)) {
-      updateData.ingredients.sort((a, b) => (a.pos || 0) - (b.pos || 0));
-    }
-    if (Array.isArray(updateData.instructions)) {
-      updateData.instructions.sort((a, b) => (a.pos || 0) - (b.pos || 0));
-    }
-
-    const recipe = await Recipe.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!recipe) {
-      return res.status(404).json({ success: false, error: 'Recipe not found' });
-    }
-
+    const recipe = await recipeService.updateRecipe(req.params.id, req.body);
     res.status(200).json({
       success: true,
       data: recipe,
@@ -203,18 +95,7 @@ export const updateRecipe = async (req, res, next) => {
  */
 export const deleteRecipe = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid Recipe ID format' });
-    }
-
-    const recipe = await Recipe.findByIdAndDelete(id);
-
-    if (!recipe) {
-      return res.status(404).json({ success: false, error: 'Recipe not found' });
-    }
-
+    await recipeService.deleteRecipe(req.params.id);
     res.status(200).json({
       success: true,
       message: 'Recipe successfully deleted',

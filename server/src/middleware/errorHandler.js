@@ -1,8 +1,22 @@
+import { CustomError } from '../errors.js';
+
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  console.error(err);
+  if (req.logger) {
+    req.logger.error(err);
+  } else {
+    console.error(err);
+  }
+
+  // Handle custom domain errors (NotFoundError, BadRequestError, etc.)
+  if (err instanceof CustomError || err.statusCode) {
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      error: err.message,
+    });
+  }
 
   // Mongoose Bad ObjectId (CastError)
   if (err.name === 'CastError') {
