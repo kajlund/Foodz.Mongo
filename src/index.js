@@ -1,41 +1,62 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import connectDB from './config/db.js';
+import connectDB from './db.js';
+import { getConfig } from './config.js';
+import { getLogger } from './logger.js';
 import recipeRoutes from './routes/recipeRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
+async function startServer() {
+  try {
+    // Validate configuration
+    const config = await getConfig();
 
-const app = express();
+    // Initialize Pino logger
+    const logger = getLogger(config);
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+    // Connect to MongoDB using validated URI and logger
+    await connectDB(config.MONGO_URI, logger);
 
-// Health check route
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Recipe REST API is running' });
-});
+    const app = express();
 
-// API Routes
-app.use('/api/recipes', recipeRoutes);
+    // Attach logger to request object
+    app.use((req, res, next) => {
+      req.logger = logger;
+      next();
+    });
 
-// Global Error Handler
-app.use(errorHandler);
+    // Middleware
+    app.use(cors());
+    app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+    // Health check route
+    app.get('/health', (req, res) => {
+      res.status(200).json({ status: 'OK', message: 'Recipe REST API is running' });
+    });
 
-const server = app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-});
+    // API Routes
+    app.use('/api/recipes', recipeRoutes);
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  console.error(`Unhandled Rejection Error: ${err.message}`);
-  server.close(() => process.exit(1));
-});
+    // Global Error Handler
+    app.use(errorHandler);
+
+    const server = app.listen(config.PORT, () => {
+      logger.info(`Server running in ${config.NODE_ENV} mode on port ${config.PORT} (Log level: ${config.logLevel})`);
+    });
+
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (err) => {
+      logger.fatal(`Unhandled Rejection Error: ${err.message}`);
+      server.close(() => process.exit(1));
+    });
+  } catch (error) {
+    console.error(`Initialization Error: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+startServer();
