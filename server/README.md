@@ -25,7 +25,7 @@ A RESTful API built with **Node.js**, **Express**, and **Mongoose/MongoDB** for 
 
 1. Clone or navigate to the project directory:
    ```bash
-   cd ~/Developer/foodz
+   cd ~/Developer/foodz/server
    ```
 
 2. Install dependencies:

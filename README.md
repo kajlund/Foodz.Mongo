@@ -13,6 +13,7 @@ foodz/
 ## Getting Started
 
 ### Backend API Server
+
 Navigate to the `server` directory for instructions on configuring environment variables, running MongoDB via Docker, starting the API server, and API endpoint documentation:
 
 ```bash
