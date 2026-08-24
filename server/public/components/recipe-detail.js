@@ -10,11 +10,18 @@ export class RecipeDetail extends LitElement {
       display: block;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
     .detail-card {
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 16px;
-      padding: 2rem;
+      padding: 2.5rem;
+      max-width: 840px;
+      margin: 0 auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     }
 
     .nav-bar {
@@ -170,8 +177,22 @@ export class RecipeDetail extends LitElement {
     }
 
     .origin-link {
-      margin-top: 1.5rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #334155;
       font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    a {
+      color: #38bdf8;
+      text-decoration: underline;
+      word-break: break-all;
+      transition: color 0.2s ease;
+    }
+
+    a:hover {
+      color: #7dd3fc;
     }
   `;
 

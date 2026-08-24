@@ -12,6 +12,10 @@ export class RecipeList extends LitElement {
       display: block;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
     .header-bar {
       display: flex;
       justify-content: space-between;

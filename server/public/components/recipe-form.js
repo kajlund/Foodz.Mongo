@@ -12,11 +12,18 @@ export class RecipeForm extends LitElement {
       display: block;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
     .form-card {
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 16px;
-      padding: 2rem;
+      padding: 2.5rem 3rem;
+      max-width: 800px;
+      margin: 0 auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     }
 
     .form-header {

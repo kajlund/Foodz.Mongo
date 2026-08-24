@@ -16,9 +16,14 @@ export class FoodzApp extends LitElement {
   static styles = css`
     :host {
       display: block;
-      max-width: 1200px;
+      max-width: 1040px;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      padding: 2.5rem 1.5rem 4rem 1.5rem;
+      width: 100%;
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     .app-header {

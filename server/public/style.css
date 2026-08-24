@@ -27,13 +27,20 @@ body {
   font-family: var(--font-body);
   min-height: 100vh;
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+foodz-app {
+  width: 100%;
 }
 
 a {
-  color: var(--accent-orange);
-  text-decoration: none;
+  color: #38bdf8;
+  text-decoration: underline;
 }
 
 a:hover {
-  text-decoration: underline;
+  color: #7dd3fc;
 }
