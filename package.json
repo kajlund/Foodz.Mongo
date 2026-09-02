@@ -1,0 +1,25 @@
+{
+  "name": "foodz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["server", "client", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,green \"npm run dev -w @foodz/api\" \"npm run dev -w @foodz/web\"",
+    "start": "npm run start -w @foodz/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "db:start": "docker compose -f server/docker-compose.yml up -d",
+    "db:stop": "docker compose -f server/docker-compose.yml down",
+    "format": "prettier --write \"{server,client,packages}/**/*.{ts,css,json,html}\" \"*.json\"",
+    "format:check": "prettier --check \"{server,client,packages}/**/*.{ts,css,json,html}\" \"*.json\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

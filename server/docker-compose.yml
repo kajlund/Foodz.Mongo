@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   mongodb:
-    image: mongo:latest
+    image: mongo:8
     container_name: foodz-mongodb
     restart: always
     ports:
