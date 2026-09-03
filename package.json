@@ -3,23 +3,33 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
-  "workspaces": ["server", "client", "packages/*"],
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "concurrently -n api,web -c cyan,green \"npm run dev -w @foodz/api\" \"npm run dev -w @foodz/web\"",
+    "dev": "npm run dev:preflight && concurrently --kill-others-on-fail -n api,web -c cyan,green \"npm run dev -w @foodz/api\" \"node scripts/wait-for-api.mjs && npm run dev -w @foodz/web\"",
+    "dev:preflight": "node scripts/dev-preflight.mjs",
     "start": "npm run start -w @foodz/api",
     "build": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
-    "db:start": "docker compose -f server/docker-compose.yml up -d",
-    "db:stop": "docker compose -f server/docker-compose.yml down",
-    "format": "prettier --write \"{server,client,packages}/**/*.{ts,css,json,html}\" \"*.json\"",
-    "format:check": "prettier --check \"{server,client,packages}/**/*.{ts,css,json,html}\" \"*.json\""
+    "format": "prettier --write \"{apps,packages}/**/*.{ts,css,json,html,md}\" \"scripts/**/*.mjs\" \"*.{json,md,mjs}\" \"docs/**/*.md\"",
+    "format:check": "prettier --check \"{apps,packages}/**/*.{ts,css,json,html,md}\" \"scripts/**/*.mjs\" \"*.{json,md,mjs}\" \"docs/**/*.md\"",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "concurrently": "^9.2.1",
+    "eslint": "^10.9.1",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.69.0",
     "vitest": "^3.2.4"
   }
 }

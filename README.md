@@ -12,18 +12,18 @@ Foodz is a TypeScript recipe manager organized as npm workspaces and modeled aft
 ## Workspaces
 
 ```text
-server/             @foodz/api
-client/             @foodz/web
+apps/api/           @foodz/api
+apps/web/           @foodz/web
 packages/contracts/ @foodz/contracts
+docs/design/        Approved visual and brand references
 ```
 
 ## Development
 
-Requires Node.js 22+ and Docker (or another MongoDB instance).
+Requires Node.js 22+ and access to the configured MongoDB server.
 
 ```bash
 npm install
-npm run db:start
 npm run dev
 ```
 
@@ -37,7 +37,7 @@ npm run typecheck
 npm run build
 ```
 
-The production API serves the built client from `client/dist`.
+The production API serves the built client from `apps/web/dist`.
 
 ## API
 

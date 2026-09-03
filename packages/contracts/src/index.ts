@@ -32,9 +32,11 @@ const recipeFields = z.object({
 });
 
 export const createRecipeSchema = recipeFields;
-export const updateRecipeSchema = recipeFields.partial().refine((value) => Object.keys(value).length > 0, {
-  message: 'At least one field is required',
-});
+export const updateRecipeSchema = recipeFields
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required',
+  });
 export const recipeListQuerySchema = z.object({
   userID: objectIdSchema.optional(),
   tag: z.string().trim().min(1).optional(),
@@ -55,5 +57,13 @@ export type CreateRecipe = z.infer<typeof createRecipeSchema>;
 export type UpdateRecipe = z.infer<typeof updateRecipeSchema>;
 export type Recipe = CreateRecipe & { _id: string; createdAt: string; updatedAt: string };
 export type Pagination = { total: number; page: number; pages: number };
-export type ApiSuccess<T> = { success: true; data: T; meta?: Record<string, unknown>; message?: string };
-export type ApiError = { success: false; error: { code: string; message: string; requestId: string; details?: unknown } };
+export type ApiSuccess<T> = {
+  success: true;
+  data: T;
+  meta?: Record<string, unknown>;
+  message?: string;
+};
+export type ApiError = {
+  success: false;
+  error: { code: string; message: string; requestId: string; details?: unknown };
+};
