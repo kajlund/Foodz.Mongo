@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from 'lit';
-import type { CreateRecipe, Ingredient, Instruction, Recipe } from '@foodz/contracts';
+import type { CreateRecipe, Ingredient, Instruction, Recipe } from '@mise/contracts';
 import phosphorRegular from '@phosphor-icons/web/regular?inline';
 import phosphorBold from '@phosphor-icons/web/bold?inline';
 import phosphorFill from '@phosphor-icons/web/fill?inline';
@@ -28,7 +28,7 @@ const emptyDraft = (): Draft => ({
   instructions: [{ pos: 1, group: 'Instructions', description: '' }],
 });
 
-export class FoodzApp extends LitElement {
+export class MiseApp extends LitElement {
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     const root = super.createRenderRoot();
     const iconStyles = document.createElement('style');
@@ -1163,4 +1163,4 @@ export class FoodzApp extends LitElement {
   `;
 }
 
-customElements.define('foodz-app', FoodzApp);
+customElements.define('mise-app', MiseApp);

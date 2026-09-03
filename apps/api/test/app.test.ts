@@ -18,7 +18,7 @@ function service(overrides: Record<string, unknown> = {}) {
     ...overrides,
   } as any;
 }
-describe('Foodz API', () => {
+describe('Mise API', () => {
   it('reports health', async () => {
     const response = await app().request('/health');
     expect(response.status).toBe(200);

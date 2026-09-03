@@ -1,6 +1,6 @@
-# Foodz
+# Mise
 
-Foodz is a TypeScript recipe manager organized as npm workspaces and modeled after TaskBook's stack.
+Mise is a TypeScript recipe manager organized as npm workspaces and modeled after TaskBook's stack.
 
 ## Stack
 
@@ -12,9 +12,9 @@ Foodz is a TypeScript recipe manager organized as npm workspaces and modeled aft
 ## Workspaces
 
 ```text
-apps/api/           @foodz/api
-apps/web/           @foodz/web
-packages/contracts/ @foodz/contracts
+apps/api/           @mise/api
+apps/web/           @mise/web
+packages/contracts/ @mise/contracts
 docs/design/        Approved visual and brand references
 ```
 

@@ -1,5 +1,5 @@
 {
-  "name": "foodz",
+  "name": "mise",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -11,9 +11,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev:preflight && concurrently --kill-others-on-fail -n api,web -c cyan,green \"npm run dev -w @foodz/api\" \"node scripts/wait-for-api.mjs && npm run dev -w @foodz/web\"",
+    "dev": "npm run dev:preflight && concurrently --kill-others-on-fail -n api,web -c cyan,green \"npm run dev -w @mise/api\" \"node scripts/wait-for-api.mjs && npm run dev -w @mise/web\"",
     "dev:preflight": "node scripts/dev-preflight.mjs",
-    "start": "npm run start -w @foodz/api",
+    "start": "npm run start -w @mise/api",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

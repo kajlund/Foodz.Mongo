@@ -31,7 +31,7 @@ try {
 }
 const server = serve(
   { fetch: createApp(new RecipeService(), logger, env.WEB_ORIGIN).fetch, port: env.PORT },
-  () => logger.info({ port: env.PORT, environment: env.NODE_ENV }, 'Foodz API listening'),
+  () => logger.info({ port: env.PORT, environment: env.NODE_ENV }, 'Mise API listening'),
 );
 async function shutdown(signal: string) {
   logger.info({ signal }, 'shutting down');

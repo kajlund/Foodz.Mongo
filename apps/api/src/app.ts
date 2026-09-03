@@ -10,7 +10,7 @@ import {
   recipeListQuerySchema,
   recipeSearchQuerySchema,
   updateRecipeSchema,
-} from '@foodz/contracts';
+} from '@mise/contracts';
 import { DomainError } from './errors/domain-error.js';
 import { RecipeService } from './services/recipe-service.js';
 

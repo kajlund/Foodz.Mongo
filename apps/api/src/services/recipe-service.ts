@@ -1,5 +1,5 @@
 import { Types, type FilterQuery } from 'mongoose';
-import type { CreateRecipe, UpdateRecipe } from '@foodz/contracts';
+import type { CreateRecipe, UpdateRecipe } from '@mise/contracts';
 import { DomainError } from '../errors/domain-error.js';
 import { recipeRepository, type RecipeRepository } from '../repositories/recipe-repository.js';
 import type { RecipeDocument } from '../db/recipe-model.js';

@@ -1,4 +1,4 @@
-import type { ApiError, ApiSuccess, CreateRecipe, Recipe, UpdateRecipe } from '@foodz/contracts';
+import type { ApiError, ApiSuccess, CreateRecipe, Recipe, UpdateRecipe } from '@mise/contracts';
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
