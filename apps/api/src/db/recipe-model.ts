@@ -8,6 +8,15 @@ export interface RecipeDocument {
   by: string;
   description: string;
   rating: number;
+  isFavorite: boolean;
+  caloriesPerServing: number | null;
+  prepTimeMinutes: number | null;
+  cookTimeMinutes: number | null;
+  servings: number | null;
+  difficulty: 'easy' | 'medium' | 'hard' | null;
+  course: string;
+  cuisine: string;
+  notes: string;
   tags: string[];
   isPublic: boolean;
   ingredients: Array<{
@@ -41,6 +50,15 @@ const recipeSchema = new Schema<RecipeDocument>(
     by: { type: String, default: '', trim: true },
     description: { type: String, default: '', trim: true },
     rating: { type: Number, min: 0, max: 5, default: 0 },
+    isFavorite: { type: Boolean, default: false, index: true },
+    caloriesPerServing: { type: Number, min: 0, default: null },
+    prepTimeMinutes: { type: Number, min: 0, default: null },
+    cookTimeMinutes: { type: Number, min: 0, default: null },
+    servings: { type: Number, min: 1, default: null },
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard', null], default: null },
+    course: { type: String, default: '', trim: true },
+    cuisine: { type: String, default: '', trim: true },
+    notes: { type: String, default: '', trim: true },
     tags: { type: [String], default: [], index: true },
     isPublic: { type: Boolean, default: true, index: true },
     ingredients: { type: [ingredientSchema], default: [] },

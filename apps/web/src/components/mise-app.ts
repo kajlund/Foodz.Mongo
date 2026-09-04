@@ -11,6 +11,15 @@ type Draft = {
   by: string;
   description: string;
   rating: number;
+  isFavorite: boolean;
+  caloriesPerServing: string;
+  prepTimeMinutes: string;
+  cookTimeMinutes: string;
+  servings: string;
+  difficulty: CreateRecipe['difficulty'];
+  course: string;
+  cuisine: string;
+  notes: string;
   tags: string;
   originUrl: string;
   ingredients: Ingredient[];
@@ -22,6 +31,15 @@ const emptyDraft = (): Draft => ({
   by: '',
   description: '',
   rating: 0,
+  isFavorite: false,
+  caloriesPerServing: '',
+  prepTimeMinutes: '',
+  cookTimeMinutes: '',
+  servings: '',
+  difficulty: null,
+  course: '',
+  cuisine: '',
+  notes: '',
   tags: '',
   originUrl: '',
   ingredients: [{ pos: 1, group: 'Ingredients', name: '', amount: '', unit: '' }],
@@ -92,6 +110,15 @@ export class MiseApp extends LitElement {
       ? {
           ...recipe,
           tags: recipe.tags.join(', '),
+          caloriesPerServing: String(recipe.caloriesPerServing ?? ''),
+          prepTimeMinutes: String(recipe.prepTimeMinutes ?? ''),
+          cookTimeMinutes: String(recipe.cookTimeMinutes ?? ''),
+          servings: String(recipe.servings ?? ''),
+          difficulty: recipe.difficulty ?? null,
+          course: recipe.course ?? '',
+          cuisine: recipe.cuisine ?? '',
+          notes: recipe.notes ?? '',
+          isFavorite: recipe.isFavorite ?? false,
           ingredients: recipe.ingredients.map((x) => ({ ...x })),
           instructions: recipe.instructions.map((x) => ({ ...x })),
         }
@@ -127,6 +154,32 @@ export class MiseApp extends LitElement {
       this.draft.instructions.filter((_, i) => i !== index),
     );
   }
+  private reorder<T extends { pos: number }>(items: T[], index: number, offset: -1 | 1): T[] {
+    const destination = index + offset;
+    if (destination < 0 || destination >= items.length) return items;
+
+    const reordered = [...items];
+    const current = reordered[index]!;
+    reordered[index] = reordered[destination]!;
+    reordered[destination] = current;
+    return reordered.map((item, i) => ({ ...item, pos: i + 1 }));
+  }
+  moveIngredient(index: number, offset: -1 | 1) {
+    this.field('ingredients', this.reorder(this.draft.ingredients, index, offset));
+  }
+  moveInstruction(index: number, offset: -1 | 1) {
+    this.field('instructions', this.reorder(this.draft.instructions, index, offset));
+  }
+  private optionalNumber(value: string): number | null {
+    return value.trim() === '' ? null : Number(value);
+  }
+  private formatTime(minutes: number | null | undefined): string {
+    if (minutes == null) return '';
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    if (!hours) return `${remainder} min`;
+    return remainder ? `${hours} h ${remainder} min` : `${hours} h`;
+  }
   async save(event: SubmitEvent) {
     event.preventDefault();
     const payload: CreateRecipe = {
@@ -135,6 +188,15 @@ export class MiseApp extends LitElement {
       by: this.draft.by.trim(),
       description: this.draft.description.trim(),
       rating: Number(this.draft.rating),
+      isFavorite: this.draft.isFavorite,
+      caloriesPerServing: this.optionalNumber(this.draft.caloriesPerServing),
+      prepTimeMinutes: this.optionalNumber(this.draft.prepTimeMinutes),
+      cookTimeMinutes: this.optionalNumber(this.draft.cookTimeMinutes),
+      servings: this.optionalNumber(this.draft.servings),
+      difficulty: this.draft.difficulty,
+      course: this.draft.course.trim(),
+      cuisine: this.draft.cuisine.trim(),
+      notes: this.draft.notes.trim(),
       originUrl: this.draft.originUrl.trim(),
       tags: this.draft.tags
         .split(',')
@@ -254,13 +316,49 @@ export class MiseApp extends LitElement {
                           <span class="category-icon"><i class="ph ${category.icon}"></i></span
                           ><small>${category.label}</small>
                         </div>
-                        <h2>${recipe.name}</h2>
+                        <h2>
+                          ${
+                            recipe.isFavorite
+                              ? html`<i
+                                  class="ph-fill ph-heart favorite-mark"
+                                  aria-label="Favorite"
+                                ></i>`
+                              : nothing
+                          }${recipe.name}
+                        </h2>
                       </div>
                       <div class="details-cell">
                         <p>${recipe.description || 'No description yet.'}</p>
                         <div class="tags">
+                          ${recipe.course ? html`<span>${recipe.course}</span>` : nothing}
+                          ${recipe.cuisine ? html`<span>${recipe.cuisine}</span>` : nothing}
                           ${recipe.tags.map((tag) => html`<span>#${tag}</span>`)}
                         </div>
+                        ${
+                          recipe.prepTimeMinutes != null ||
+                          recipe.cookTimeMinutes != null ||
+                          recipe.servings != null
+                            ? html`<div class="quick-facts">
+                                ${
+                                  recipe.prepTimeMinutes != null || recipe.cookTimeMinutes != null
+                                    ? html`<span
+                                        ><i class="ph ph-clock"></i>${this.formatTime(
+                                          (recipe.prepTimeMinutes ?? 0) +
+                                            (recipe.cookTimeMinutes ?? 0),
+                                        )}</span
+                                      >`
+                                    : nothing
+                                }
+                                ${
+                                  recipe.servings != null
+                                    ? html`<span
+                                        ><i class="ph ph-users"></i>${recipe.servings}</span
+                                      >`
+                                    : nothing
+                                }
+                              </div>`
+                            : nothing
+                        }
                       </div>
                       <div class="rating">
                         <i class="ph-fill ph-star"></i><span>${recipe.rating.toFixed(1)}</span>
@@ -309,12 +407,80 @@ export class MiseApp extends LitElement {
           <i class="ph ph-pencil-simple"></i>Edit recipe
         </button>
       </nav>
-      <div class="eyebrow">Recipe</div>
+      <div class="eyebrow">
+        ${r.isFavorite ? html`<i class="ph-fill ph-heart"></i> Favorite recipe` : 'Recipe'}
+      </div>
       <h1>${r.name}</h1>
       <p class="meta">
         ${r.by ? `By ${r.by} · ` : ''}<i class="ph-fill ph-star"></i> ${r.rating.toFixed(1)}
       </p>
       <p class="lede">${r.description}</p>
+      <dl class="recipe-facts">
+        ${
+          r.prepTimeMinutes != null
+            ? html`<div>
+                <dt>Preparation</dt>
+                <dd>${this.formatTime(r.prepTimeMinutes)}</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.cookTimeMinutes != null
+            ? html`<div>
+                <dt>Cooking</dt>
+                <dd>${this.formatTime(r.cookTimeMinutes)}</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.prepTimeMinutes != null || r.cookTimeMinutes != null
+            ? html`<div>
+                <dt>Total time</dt>
+                <dd>${this.formatTime((r.prepTimeMinutes ?? 0) + (r.cookTimeMinutes ?? 0))}</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.servings != null
+            ? html`<div>
+                <dt>Servings</dt>
+                <dd>${r.servings}</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.caloriesPerServing != null
+            ? html`<div>
+                <dt>Per serving</dt>
+                <dd>${r.caloriesPerServing} kcal</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.difficulty
+            ? html`<div>
+                <dt>Difficulty</dt>
+                <dd class="capitalize">${r.difficulty}</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.course
+            ? html`<div>
+                <dt>Course</dt>
+                <dd>${r.course}</dd>
+              </div>`
+            : nothing
+        }
+        ${
+          r.cuisine
+            ? html`<div>
+                <dt>Cuisine</dt>
+                <dd>${r.cuisine}</dd>
+              </div>`
+            : nothing
+        }
+      </dl>
       <div class="columns">
         <div>
           <h2>Ingredients</h2>
@@ -329,6 +495,14 @@ export class MiseApp extends LitElement {
           </ol>
         </div>
       </div>
+      ${
+        r.notes
+          ? html`<section class="recipe-notes">
+              <h2>Notes</h2>
+              <p>${r.notes}</p>
+            </section>`
+          : nothing
+      }
       ${r.originUrl ? html`<a href=${r.originUrl} target="_blank" rel="noopener">Original recipe <i class="ph ph-arrow-square-out"></i></a>` : nothing}
     </section>`;
   }
@@ -403,6 +577,109 @@ export class MiseApp extends LitElement {
         <div class="section-heading">
           <span>02</span>
           <div>
+            <h2>Cooking details</h2>
+            <p>Timing, yield and helpful ways to classify the recipe.</p>
+          </div>
+        </div>
+        <label class="favorite-toggle">
+          <input
+            type="checkbox"
+            .checked=${this.draft.isFavorite}
+            @change=${(e: Event) =>
+              this.field('isFavorite', (e.target as HTMLInputElement).checked)}
+          />
+          <i class="ph-fill ph-heart"></i>
+          Mark as a favorite
+        </label>
+        <div class="metadata-grid">
+          <label
+            >Preparation <span class="hint">minutes</span
+            ><input
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              placeholder="20"
+              .value=${this.draft.prepTimeMinutes}
+              @input=${(e: Event) =>
+                this.field('prepTimeMinutes', (e.target as HTMLInputElement).value)}
+          /></label>
+          <label
+            >Cooking <span class="hint">minutes</span
+            ><input
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              placeholder="45"
+              .value=${this.draft.cookTimeMinutes}
+              @input=${(e: Event) =>
+                this.field('cookTimeMinutes', (e.target as HTMLInputElement).value)}
+          /></label>
+          <label
+            >Servings<input
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              placeholder="4"
+              .value=${this.draft.servings}
+              @input=${(e: Event) => this.field('servings', (e.target as HTMLInputElement).value)}
+          /></label>
+          <label
+            >Calories <span class="hint">kcal/serving</span
+            ><input
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              placeholder="620"
+              .value=${this.draft.caloriesPerServing}
+              @input=${(e: Event) =>
+                this.field('caloriesPerServing', (e.target as HTMLInputElement).value)}
+          /></label>
+        </div>
+        <div class="classification-grid">
+          <label
+            >Course<input
+              placeholder="Main course"
+              .value=${this.draft.course}
+              @input=${(e: Event) => this.field('course', (e.target as HTMLInputElement).value)}
+          /></label>
+          <label
+            >Cuisine<input
+              placeholder="Italian"
+              .value=${this.draft.cuisine}
+              @input=${(e: Event) => this.field('cuisine', (e.target as HTMLInputElement).value)}
+          /></label>
+          <label
+            >Difficulty<select
+              .value=${this.draft.difficulty ?? ''}
+              @change=${(e: Event) =>
+                this.field(
+                  'difficulty',
+                  ((e.target as HTMLSelectElement).value || null) as CreateRecipe['difficulty'],
+                )}
+            >
+              <option value="">Not specified</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select></label
+          >
+        </div>
+        <label
+          >Notes<textarea
+            placeholder="Substitutions, serving ideas or anything to remember next timeâ€¦"
+            .value=${this.draft.notes}
+            @input=${(e: Event) => this.field('notes', (e.target as HTMLTextAreaElement).value)}
+          ></textarea>
+        </label>
+      </section>
+      <section class="form-section">
+        <div class="section-heading">
+          <span>03</span>
+          <div>
             <h2>Ingredients</h2>
             <p>Use one ingredient per row.</p>
           </div>
@@ -429,14 +706,35 @@ export class MiseApp extends LitElement {
                 placeholder="g"
                 .value=${x.unit}
                 @input=${(e: Event) => this.ingredient(i, 'unit', (e.target as HTMLInputElement).value)}
-              /><button
-                class="icon-button"
-                type="button"
-                aria-label=${`Remove ingredient ${i + 1}`}
-                @click=${() => this.removeIngredient(i)}
-              >
-                <i class="ph ph-x"></i>
-              </button>
+              />
+              <div class="row-actions">
+                <button
+                  class="icon-button reorder-button"
+                  type="button"
+                  aria-label=${`Move ingredient ${i + 1} up`}
+                  ?disabled=${i === 0}
+                  @click=${() => this.moveIngredient(i, -1)}
+                >
+                  <i class="ph ph-arrow-up"></i>
+                </button>
+                <button
+                  class="icon-button reorder-button"
+                  type="button"
+                  aria-label=${`Move ingredient ${i + 1} down`}
+                  ?disabled=${i === this.draft.ingredients.length - 1}
+                  @click=${() => this.moveIngredient(i, 1)}
+                >
+                  <i class="ph ph-arrow-down"></i>
+                </button>
+                <button
+                  class="icon-button remove-button"
+                  type="button"
+                  aria-label=${`Remove ingredient ${i + 1}`}
+                  @click=${() => this.removeIngredient(i)}
+                >
+                  <i class="ph ph-x"></i>
+                </button>
+              </div>
             </div>`,
         )}<button
           class="add-row"
@@ -448,7 +746,7 @@ export class MiseApp extends LitElement {
       </section>
       <section class="form-section">
         <div class="section-heading">
-          <span>03</span>
+          <span>04</span>
           <div>
             <h2>Instructions</h2>
             <p>Write each action as a separate step.</p>
@@ -464,15 +762,35 @@ export class MiseApp extends LitElement {
                 placeholder="Describe this step…"
                 .value=${x.description}
                 @input=${(e: Event) => this.instruction(i, (e.target as HTMLTextAreaElement).value)}
-              ></textarea
-              ><button
-                class="icon-button"
-                type="button"
-                aria-label=${`Remove instruction ${i + 1}`}
-                @click=${() => this.removeInstruction(i)}
-              >
-                <i class="ph ph-x"></i>
-              </button>
+              ></textarea>
+              <div class="row-actions">
+                <button
+                  class="icon-button reorder-button"
+                  type="button"
+                  aria-label=${`Move instruction ${i + 1} up`}
+                  ?disabled=${i === 0}
+                  @click=${() => this.moveInstruction(i, -1)}
+                >
+                  <i class="ph ph-arrow-up"></i>
+                </button>
+                <button
+                  class="icon-button reorder-button"
+                  type="button"
+                  aria-label=${`Move instruction ${i + 1} down`}
+                  ?disabled=${i === this.draft.instructions.length - 1}
+                  @click=${() => this.moveInstruction(i, 1)}
+                >
+                  <i class="ph ph-arrow-down"></i>
+                </button>
+                <button
+                  class="icon-button remove-button"
+                  type="button"
+                  aria-label=${`Remove instruction ${i + 1}`}
+                  @click=${() => this.removeInstruction(i)}
+                >
+                  <i class="ph ph-x"></i>
+                </button>
+              </div>
             </div>`,
         )}<button
           class="add-row"
@@ -688,6 +1006,11 @@ export class MiseApp extends LitElement {
         serif;
       letter-spacing: -0.02em;
     }
+    .favorite-mark {
+      margin-right: 8px;
+      color: #b9573f;
+      font-size: 0.9em;
+    }
     .details-cell {
       padding-right: 20px;
     }
@@ -712,6 +1035,18 @@ export class MiseApp extends LitElement {
       padding: 5px 11px;
       font-size: 0.69rem;
       line-height: 1;
+    }
+    .quick-facts {
+      display: flex;
+      gap: 14px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .quick-facts span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
     .rating {
       display: flex;
@@ -823,6 +1158,41 @@ export class MiseApp extends LitElement {
       font-size: 1.08rem;
       line-height: 1.65;
     }
+    .recipe-facts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+      gap: 1px;
+      margin: 1.75rem 0 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--line);
+    }
+    .recipe-facts div {
+      padding: 14px 16px;
+      background: #fffdf9;
+    }
+    .recipe-facts dt {
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .recipe-facts dd {
+      margin: 0;
+      color: #2c402f;
+      font-weight: 650;
+    }
+    .capitalize {
+      text-transform: capitalize;
+    }
+    .recipe-notes p {
+      color: var(--muted);
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
     .columns {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -858,7 +1228,8 @@ export class MiseApp extends LitElement {
       font-size: 0.85rem;
     }
     label input,
-    label textarea {
+    label textarea,
+    label select {
       grid-column: 1/-1;
     }
     .hint {
@@ -868,7 +1239,8 @@ export class MiseApp extends LitElement {
       font-weight: 400;
     }
     input,
-    textarea {
+    textarea,
+    select {
       width: 100%;
       min-width: 0;
       background: #fffefb;
@@ -876,6 +1248,9 @@ export class MiseApp extends LitElement {
       border-radius: 6px;
       color: var(--ink);
       padding: 0.78rem 0.9rem;
+    }
+    select {
+      min-height: 43px;
     }
     textarea {
       min-height: 7rem;
@@ -886,6 +1261,35 @@ export class MiseApp extends LitElement {
       margin: 0.35rem 0 0;
       color: var(--muted);
       font-size: 0.86rem;
+    }
+    .metadata-grid,
+    .classification-grid {
+      display: grid;
+      gap: 0 14px;
+    }
+    .metadata-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .classification-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .favorite-toggle {
+      display: inline-flex;
+      grid-template-columns: none;
+      align-items: center;
+      gap: 9px;
+      width: fit-content;
+      cursor: pointer;
+    }
+    .favorite-toggle input {
+      grid-column: auto;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      accent-color: #b9573f;
+    }
+    .favorite-toggle i {
+      color: #b9573f;
     }
     .recipe-form {
       padding: 0;
@@ -922,7 +1326,7 @@ export class MiseApp extends LitElement {
     .ingredient-head,
     .ingredient-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 110px 110px 36px;
+      grid-template-columns: minmax(0, 1fr) 110px 110px 100px;
       gap: 8px;
       align-items: center;
     }
@@ -935,7 +1339,7 @@ export class MiseApp extends LitElement {
       letter-spacing: 0.08em;
     }
     .ingredient-row {
-      grid-template-columns: 32px minmax(0, 1fr) 110px 110px 36px;
+      grid-template-columns: 32px minmax(0, 1fr) 110px 110px 100px;
       margin-bottom: 8px;
     }
     .row-number,
@@ -967,6 +1371,27 @@ export class MiseApp extends LitElement {
       color: #9b3e2b;
       background: #f7e9e2;
     }
+    .row-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 2px;
+    }
+    .row-actions .icon-button {
+      width: 32px;
+      height: 36px;
+    }
+    .reorder-button {
+      color: var(--green);
+    }
+    .reorder-button:hover:not(:disabled) {
+      color: var(--green);
+      background: var(--green-soft);
+    }
+    .icon-button:disabled {
+      color: #c8c8c2;
+      background: transparent;
+      cursor: not-allowed;
+    }
     .add-row {
       margin: 8px 0 0 40px;
       border-style: dashed;
@@ -975,7 +1400,7 @@ export class MiseApp extends LitElement {
     }
     .step-row {
       display: grid;
-      grid-template-columns: 32px minmax(0, 1fr) 36px;
+      grid-template-columns: 32px minmax(0, 1fr) 100px;
       gap: 8px;
       align-items: start;
       margin-bottom: 10px;
@@ -1124,12 +1549,25 @@ export class MiseApp extends LitElement {
         grid-template-columns: 1fr;
         gap: 0;
       }
+      .metadata-grid,
+      .classification-grid {
+        grid-template-columns: 1fr 1fr;
+      }
       .ingredient-head {
         display: none;
       }
       .ingredient-row {
-        grid-template-columns: 28px minmax(0, 1fr) 72px 64px 32px;
+        grid-template-columns: 28px minmax(0, 1fr) 72px 64px;
         gap: 5px;
+      }
+      .ingredient-row .row-actions {
+        grid-column: 2 / -1;
+      }
+      .step-row {
+        grid-template-columns: 28px minmax(0, 1fr);
+      }
+      .step-row .row-actions {
+        grid-column: 2;
       }
       .add-row {
         margin-left: 36px;

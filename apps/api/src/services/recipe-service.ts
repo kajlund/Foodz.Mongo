@@ -51,6 +51,8 @@ export class RecipeService {
         { name: value },
         { description: value },
         { tags: value },
+        { course: value },
+        { cuisine: value },
         { 'ingredients.name': value },
         { by: value },
       ],
