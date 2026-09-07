@@ -6,6 +6,13 @@
   background: #f6f2e9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color: #ede8df;
+  background: #151412;
+  color-scheme: dark;
 }
 
 * {
@@ -17,11 +24,21 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: #f6f2e9;
+  color: #263127;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+:root[data-theme='dark'] body {
+  background-color: #151412;
+  color: #ede8df;
 }
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 button {
@@ -30,6 +47,7 @@ button {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
+select:focus-visible,
 a:focus-visible {
   outline: 2px solid #c8752e;
   outline-offset: 3px;
