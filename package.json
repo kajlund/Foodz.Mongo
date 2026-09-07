@@ -6,22 +6,19 @@
   "engines": {
     "node": ">=22"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
-    "dev": "npm run dev:preflight && concurrently --kill-others-on-fail -n api,web -c cyan,green \"npm run dev -w @mise/api\" \"node scripts/wait-for-api.mjs && npm run dev -w @mise/web\"",
+    "dev": "pnpm run dev:preflight && concurrently --kill-others-on-fail -n api,web -c cyan,green \"pnpm --filter @mise/api dev\" \"node scripts/wait-for-api.mjs && pnpm --filter @mise/web dev\"",
     "dev:preflight": "node scripts/dev-preflight.mjs",
-    "start": "npm run start -w @mise/api",
-    "build": "npm run build --workspaces --if-present",
+    "start": "pnpm --filter @mise/api start",
+    "build": "pnpm -r --if-present run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm test --workspaces --if-present",
-    "format": "prettier --write \"{apps,packages}/**/*.{ts,css,json,html,md}\" \"scripts/**/*.mjs\" \"*.{json,md,mjs}\" \"docs/**/*.md\"",
-    "format:check": "prettier --check \"{apps,packages}/**/*.{ts,css,json,html,md}\" \"scripts/**/*.mjs\" \"*.{json,md,mjs}\" \"docs/**/*.md\"",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm test"
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "format": "prettier --write \"{apps,packages}/**/*.{ts,css,json,html,md}\" \"scripts/**/*.mjs\" \"*.{json,md,mjs,yaml}\" \"docs/**/*.md\"",
+    "format:check": "prettier --check \"{apps,packages}/**/*.{ts,css,json,html,md}\" \"scripts/**/*.mjs\" \"*.{json,md,mjs,yaml}\" \"docs/**/*.md\"",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
