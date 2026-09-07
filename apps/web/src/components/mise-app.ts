@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from 'lit';
-import type { CreateRecipe, Ingredient, Instruction, Recipe } from '@mise/contracts';
+import type { CreateRecipe, Ingredient, Instruction, Pagination, Recipe } from '@mise/contracts';
 import phosphorRegular from '@phosphor-icons/web/regular?inline';
 import phosphorBold from '@phosphor-icons/web/bold?inline';
 import phosphorFill from '@phosphor-icons/web/fill?inline';
@@ -62,6 +62,9 @@ export class MiseApp extends LitElement {
     draft: { state: true },
     loading: { state: true },
     query: { state: true },
+    page: { state: true },
+    limit: { state: true },
+    pagination: { state: true },
     message: { state: true },
     apiError: { state: true },
   };
@@ -71,6 +74,9 @@ export class MiseApp extends LitElement {
   declare draft: Draft;
   declare loading: boolean;
   declare query: string;
+  declare page: number;
+  declare limit: number;
+  declare pagination: Pagination;
   declare message: string;
   declare apiError: string;
 
@@ -82,6 +88,9 @@ export class MiseApp extends LitElement {
     this.draft = emptyDraft();
     this.loading = false;
     this.query = '';
+    this.page = 1;
+    this.limit = 10;
+    this.pagination = { total: 0, page: 1, pages: 1 };
     this.message = '';
     this.apiError = '';
   }
@@ -93,13 +102,63 @@ export class MiseApp extends LitElement {
     this.loading = true;
     this.apiError = '';
     try {
-      this.recipes = await api.list(this.query);
+      const result = await api.list({
+        query: this.query,
+        page: this.page,
+        limit: this.limit,
+      });
+      this.recipes = result.recipes;
+      this.pagination = result.pagination;
+      if (this.pagination.pages > 0 && this.page > this.pagination.pages) {
+        this.page = this.pagination.pages;
+        return void (await this.load());
+      }
     } catch (e) {
       this.apiError = e instanceof Error ? e.message : String(e);
     } finally {
       this.loading = false;
     }
   }
+
+  goToPage(page: number) {
+    if (page < 1 || page > this.pagination.pages || page === this.page) return;
+    this.page = page;
+    void this.load();
+    this.renderRoot
+      .querySelector('.recipe-table')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  changeLimit(limit: number) {
+    if (this.limit === limit) return;
+    this.limit = limit;
+    this.page = 1;
+    void this.load();
+  }
+
+  private getVisiblePages(): (number | 'ellipsis')[] {
+    const totalPages = this.pagination.pages;
+    const current = this.page;
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, 'ellipsis', totalPages];
+    }
+    if (current >= totalPages - 3) {
+      return [
+        1,
+        'ellipsis',
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ];
+    }
+    return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', totalPages];
+  }
+
   notify(value: unknown) {
     this.message = value instanceof Error ? value.message : String(value);
     window.setTimeout(() => (this.message = ''), 3500);
@@ -215,6 +274,7 @@ export class MiseApp extends LitElement {
         await api.update(this.selected._id, payload);
       } else {
         await api.create(payload);
+        this.page = 1;
       }
       this.view = 'list';
       await this.load();
@@ -234,6 +294,9 @@ export class MiseApp extends LitElement {
     try {
       await api.delete(recipe._id);
       if (this.selected?._id === recipe._id) this.view = 'list';
+      if (this.recipes.length === 1 && this.page > 1) {
+        this.page -= 1;
+      }
       await this.load();
     } catch (e) {
       this.notify(e);
@@ -257,6 +320,8 @@ export class MiseApp extends LitElement {
         <button
           class="brand"
           @click=${() => {
+            this.query = '';
+            this.page = 1;
             this.view = 'list';
             void this.load();
           }}
@@ -280,11 +345,39 @@ export class MiseApp extends LitElement {
             aria-label="Search recipes"
             placeholder="Search recipes..."
             .value=${this.query}
-            @change=${(e: Event) => {
+            @input=${(e: Event) => {
               this.query = (e.target as HTMLInputElement).value;
+            }}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === 'Enter') {
+                this.page = 1;
+                void this.load();
+              }
+            }}
+            @change=${() => {
+              this.page = 1;
               void this.load();
             }}
-        /></label>
+          />
+          ${
+            this.query
+              ? html`
+                  <button
+                    type="button"
+                    class="search-clear"
+                    aria-label="Clear search"
+                    @click=${() => {
+                      this.query = '';
+                      this.page = 1;
+                      void this.load();
+                    }}
+                  >
+                    <i class="ph ph-x"></i>
+                  </button>
+                `
+              : nothing
+          }
+        </label>
         <button class="primary" @click=${() => this.edit()}>
           <i class="ph ph-plus"></i>New recipe
         </button>
@@ -304,96 +397,171 @@ export class MiseApp extends LitElement {
                 </button>
               </section>`
             : this.recipes.length
-              ? html` <section class="recipe-table" aria-label="Recipes">
-                  <div class="table-head">
-                    <span>Recipe</span><span>Details</span><span>Rating</span><span>Actions</span>
-                  </div>
-                  ${this.recipes.map((recipe) => {
-                    const category = this.category(recipe);
-                    return html` <article>
-                      <div class="recipe-cell">
-                        <div class="category">
-                          <span class="category-icon"><i class="ph ${category.icon}"></i></span
-                          ><small>${category.label}</small>
+              ? html`
+                  <section class="recipe-table" aria-label="Recipes">
+                    <div class="table-head">
+                      <span>Recipe</span><span>Details</span><span>Rating</span><span>Actions</span>
+                    </div>
+                    ${this.recipes.map((recipe) => {
+                      const category = this.category(recipe);
+                      return html` <article>
+                        <div class="recipe-cell">
+                          <div class="category">
+                            <span class="category-icon"><i class="ph ${category.icon}"></i></span
+                            ><small>${category.label}</small>
+                          </div>
+                          <h2>
+                            ${
+                              recipe.isFavorite
+                                ? html`<i
+                                    class="ph-fill ph-heart favorite-mark"
+                                    aria-label="Favorite"
+                                  ></i>`
+                                : nothing
+                            }${recipe.name}
+                          </h2>
                         </div>
-                        <h2>
+                        <div class="details-cell">
+                          <p>${recipe.description || 'No description yet.'}</p>
+                          <div class="tags">
+                            ${recipe.course ? html`<span>${recipe.course}</span>` : nothing}
+                            ${recipe.cuisine ? html`<span>${recipe.cuisine}</span>` : nothing}
+                            ${recipe.tags.map((tag) => html`<span>#${tag}</span>`)}
+                          </div>
                           ${
-                            recipe.isFavorite
-                              ? html`<i
-                                  class="ph-fill ph-heart favorite-mark"
-                                  aria-label="Favorite"
-                                ></i>`
+                            recipe.prepTimeMinutes != null ||
+                            recipe.cookTimeMinutes != null ||
+                            recipe.servings != null
+                              ? html`<div class="quick-facts">
+                                  ${
+                                    recipe.prepTimeMinutes != null || recipe.cookTimeMinutes != null
+                                      ? html`<span
+                                          ><i class="ph ph-clock"></i>${this.formatTime(
+                                            (recipe.prepTimeMinutes ?? 0) +
+                                              (recipe.cookTimeMinutes ?? 0),
+                                          )}</span
+                                        >`
+                                      : nothing
+                                  }
+                                  ${
+                                    recipe.servings != null
+                                      ? html`<span
+                                          ><i class="ph ph-users"></i>${recipe.servings}</span
+                                        >`
+                                      : nothing
+                                  }
+                                </div>`
                               : nothing
-                          }${recipe.name}
-                        </h2>
-                      </div>
-                      <div class="details-cell">
-                        <p>${recipe.description || 'No description yet.'}</p>
-                        <div class="tags">
-                          ${recipe.course ? html`<span>${recipe.course}</span>` : nothing}
-                          ${recipe.cuisine ? html`<span>${recipe.cuisine}</span>` : nothing}
-                          ${recipe.tags.map((tag) => html`<span>#${tag}</span>`)}
+                          }
                         </div>
-                        ${
-                          recipe.prepTimeMinutes != null ||
-                          recipe.cookTimeMinutes != null ||
-                          recipe.servings != null
-                            ? html`<div class="quick-facts">
-                                ${
-                                  recipe.prepTimeMinutes != null || recipe.cookTimeMinutes != null
-                                    ? html`<span
-                                        ><i class="ph ph-clock"></i>${this.formatTime(
-                                          (recipe.prepTimeMinutes ?? 0) +
-                                            (recipe.cookTimeMinutes ?? 0),
-                                        )}</span
-                                      >`
-                                    : nothing
-                                }
-                                ${
-                                  recipe.servings != null
-                                    ? html`<span
-                                        ><i class="ph ph-users"></i>${recipe.servings}</span
-                                      >`
-                                    : nothing
-                                }
-                              </div>`
-                            : nothing
-                        }
-                      </div>
-                      <div class="rating">
-                        <i class="ph-fill ph-star"></i><span>${recipe.rating.toFixed(1)}</span>
-                      </div>
-                      <div class="actions">
-                        <button
-                          title="View"
-                          aria-label=${`View ${recipe.name}`}
-                          @click=${() => {
-                            this.selected = recipe;
-                            this.view = 'detail';
-                          }}
-                        >
-                          <i class="ph ph-eye"></i><span>View</span>
-                        </button>
-                        <button
-                          title="Edit"
-                          aria-label=${`Edit ${recipe.name}`}
-                          @click=${() => this.edit(recipe)}
-                        >
-                          <i class="ph ph-pencil-simple"></i><span>Edit</span>
-                        </button>
-                        <button
-                          title="Delete"
-                          aria-label=${`Delete ${recipe.name}`}
-                          @click=${() => void this.remove(recipe)}
-                        >
-                          <i class="ph ph-trash"></i><span>Delete</span>
-                        </button>
-                      </div>
-                    </article>`;
-                  })}
-                </section>`
+                        <div class="rating">
+                          <i class="ph-fill ph-star"></i><span>${recipe.rating.toFixed(1)}</span>
+                        </div>
+                        <div class="actions">
+                          <button
+                            title="View"
+                            aria-label=${`View ${recipe.name}`}
+                            @click=${() => {
+                              this.selected = recipe;
+                              this.view = 'detail';
+                            }}
+                          >
+                            <i class="ph ph-eye"></i><span>View</span>
+                          </button>
+                          <button
+                            title="Edit"
+                            aria-label=${`Edit ${recipe.name}`}
+                            @click=${() => this.edit(recipe)}
+                          >
+                            <i class="ph ph-pencil-simple"></i><span>Edit</span>
+                          </button>
+                          <button
+                            title="Delete"
+                            aria-label=${`Delete ${recipe.name}`}
+                            @click=${() => void this.remove(recipe)}
+                          >
+                            <i class="ph ph-trash"></i><span>Delete</span>
+                          </button>
+                        </div>
+                      </article>`;
+                    })}
+                  </section>
+                  ${this.renderPagination()}
+                `
               : html`<p class="empty">No recipes found. Add the first one!</p>`
       }`;
+  }
+
+  private renderPagination() {
+    const { total, page, pages } = this.pagination;
+    if (total === 0) return nothing;
+
+    const start = (page - 1) * this.limit + 1;
+    const end = Math.min(page * this.limit, total);
+    const visiblePages = this.getVisiblePages();
+
+    return html`
+      <nav class="pagination-bar" aria-label="Recipe pagination">
+        <div class="pagination-summary">
+          Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> recipes
+        </div>
+
+        <div class="pagination-pages">
+          <button
+            class="pagination-step"
+            ?disabled=${page <= 1}
+            @click=${() => this.goToPage(page - 1)}
+            aria-label="Previous page"
+          >
+            <i class="ph ph-caret-left"></i>
+            <span>Previous</span>
+          </button>
+
+          <div class="page-numbers" role="list">
+            ${visiblePages.map((item, idx) =>
+              item === 'ellipsis'
+                ? html`<span class="pagination-ellipsis" key="ellipsis-${idx}">…</span>`
+                : html`
+                    <button
+                      class="page-number ${item === page ? 'active' : ''}"
+                      ?disabled=${item === page}
+                      aria-label="Page ${item}"
+                      aria-current=${item === page ? 'page' : nothing}
+                      @click=${() => this.goToPage(item)}
+                    >
+                      ${item}
+                    </button>
+                  `,
+            )}
+          </div>
+
+          <button
+            class="pagination-step"
+            ?disabled=${page >= pages}
+            @click=${() => this.goToPage(page + 1)}
+            aria-label="Next page"
+          >
+            <span>Next</span>
+            <i class="ph ph-caret-right"></i>
+          </button>
+        </div>
+
+        <div class="pagination-limit">
+          <label for="recipes-per-page">Show</label>
+          <select
+            id="recipes-per-page"
+            aria-label="Recipes per page"
+            .value=${String(this.limit)}
+            @change=${(e: Event) => this.changeLimit(Number((e.target as HTMLSelectElement).value))}
+          >
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+          </select>
+          <span>per page</span>
+        </div>
+      </nav>
+    `;
   }
 
   detail() {
@@ -894,11 +1062,35 @@ export class MiseApp extends LitElement {
       font-size: 1.5rem;
     }
     .search input {
+      flex: 1;
       border: 0;
       background: transparent;
       padding: 0;
       font-size: 1rem;
       color: var(--ink);
+    }
+    .search-clear {
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #858b81;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      transition:
+        background 0.15s,
+        color 0.15s;
+    }
+    .search-clear:hover {
+      background: #efebe2;
+      color: var(--ink);
+    }
+    .search-clear i {
+      margin: 0;
+      font-size: 1.1rem;
     }
     button {
       border: 1px solid #cfc8bb;
@@ -1434,6 +1626,124 @@ export class MiseApp extends LitElement {
       border-radius: 10px;
       background: #fffdf966;
     }
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-top: 24px;
+      padding: 14px 22px;
+      border: 1px solid #d2cabd;
+      border-radius: 10px;
+      background: #fffdf8cc;
+      box-shadow: 0 4px 18px #705c3710;
+      color: var(--ink);
+    }
+    .pagination-summary {
+      font-size: 0.85rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .pagination-summary strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .pagination-pages {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pagination-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0.48rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 6px;
+      color: var(--ink);
+      background: #fffefb;
+      border: 1px solid #cfc8bb;
+      cursor: pointer;
+    }
+    .pagination-step:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-color: #dfdbd2;
+      background: #fcfbf8;
+    }
+    .pagination-step i {
+      margin: 0;
+      font-size: 0.95rem;
+    }
+    .page-numbers {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .page-number {
+      min-width: 36px;
+      height: 36px;
+      padding: 0 6px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      border: 1px solid #cfc8bb;
+      background: #fffefb;
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition:
+        background 0.15s,
+        border-color 0.15s,
+        color 0.15s;
+    }
+    .page-number:hover:not(:disabled) {
+      background: #f2eee5;
+      border-color: #bcb3a4;
+    }
+    .page-number.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: #ffffff;
+      font-weight: 700;
+      cursor: default;
+      box-shadow: 0 2px 8px #405c3533;
+    }
+    .pagination-ellipsis {
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      user-select: none;
+    }
+    .pagination-limit {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .pagination-limit label {
+      margin: 0;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .pagination-limit select {
+      min-height: 34px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.82rem;
+      border-radius: 6px;
+      border: 1px solid #cfc8bb;
+      background: #fffefb;
+      cursor: pointer;
+      width: auto;
+    }
+    .pagination-limit span {
+      color: var(--muted);
+    }
     @media (max-width: 1050px) {
       :host {
         padding: 24px;
@@ -1477,10 +1787,42 @@ export class MiseApp extends LitElement {
       .actions {
         align-self: center;
       }
+      .pagination-bar {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+      }
+      .pagination-summary {
+        order: 1;
+      }
+      .pagination-pages {
+        order: 2;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .pagination-limit {
+        order: 3;
+      }
     }
     @media (max-width: 680px) {
       :host {
         padding: 18px 16px 35px;
+      }
+      .pagination-bar {
+        padding: 14px 10px;
+        width: 100%;
+      }
+      .pagination-step span {
+        display: none;
+      }
+      .pagination-step {
+        padding: 0.45rem 0.6rem;
+      }
+      .page-number {
+        min-width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
       }
       header {
         height: 75px;
