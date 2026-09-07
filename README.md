@@ -40,6 +40,21 @@ pnpm build
 
 The production API serves the built client from `apps/web/dist`.
 
+## Container Deployment (Docker)
+
+To run the full stack (Mise app + MongoDB) with Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+Or build and run the unified production image standalone:
+
+```bash
+docker build -t mise .
+docker run -p 3000:3000 -e MONGO_URI="mongodb+srv://..." mise
+```
+
 ## API
 
 - `GET /health`
