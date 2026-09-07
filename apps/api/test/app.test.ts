@@ -14,6 +14,7 @@ function service(overrides: Record<string, unknown> = {}) {
       .fn()
       .mockResolvedValue({ recipes: [], query: '', pagination: { total: 0, page: 1, pages: 1 } }),
     getCourses: vi.fn().mockResolvedValue(['Breakfast', 'Dessert', 'Dinner']),
+    getAuthors: vi.fn().mockResolvedValue(['Alice', 'Bob']),
     createRecipe: vi.fn(),
     getRecipeById: vi.fn(),
     updateRecipe: vi.fn(),
@@ -42,6 +43,16 @@ describe('Mise API', () => {
     });
     expect(getCourses).toHaveBeenCalled();
   });
+  it('returns distinct authors from /api/recipes/authors', async () => {
+    const getAuthors = vi.fn().mockResolvedValue(['Alice', 'Bob']);
+    const response = await app({ getAuthors }).request('/api/recipes/authors');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: true,
+      data: ['Alice', 'Bob'],
+    });
+    expect(getAuthors).toHaveBeenCalled();
+  });
   it('passes course query parameter to getRecipes', async () => {
     const getRecipes = vi
       .fn()
@@ -51,6 +62,18 @@ describe('Mise API', () => {
     expect(getRecipes).toHaveBeenCalledWith(
       expect.objectContaining({
         course: 'Dessert',
+      }),
+    );
+  });
+  it('passes by query parameter to getRecipes', async () => {
+    const getRecipes = vi
+      .fn()
+      .mockResolvedValue({ recipes: [], pagination: { total: 0, page: 1, pages: 1 } });
+    const response = await app({ getRecipes }).request('/api/recipes?by=Alice');
+    expect(response.status).toBe(200);
+    expect(getRecipes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: 'Alice',
       }),
     );
   });
@@ -68,6 +91,21 @@ describe('Mise API', () => {
       expect.objectContaining({
         q: 'pie',
         course: 'Dessert',
+      }),
+    );
+  });
+  it('passes by query parameter to searchRecipes', async () => {
+    const searchRecipes = vi.fn().mockResolvedValue({
+      recipes: [],
+      query: 'pie',
+      pagination: { total: 0, page: 1, pages: 1 },
+    });
+    const response = await app({ searchRecipes }).request('/api/recipes/search?q=pie&by=Alice');
+    expect(response.status).toBe(200);
+    expect(searchRecipes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        q: 'pie',
+        by: 'Alice',
       }),
     );
   });

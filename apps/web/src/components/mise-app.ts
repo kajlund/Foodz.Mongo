@@ -65,6 +65,9 @@ export class MiseApp extends LitElement {
     course: { state: true },
     courses: { state: true },
     courseDropdownOpen: { state: true },
+    by: { state: true },
+    authors: { state: true },
+    authorDropdownOpen: { state: true },
     page: { state: true },
     limit: { state: true },
     pagination: { state: true },
@@ -81,6 +84,9 @@ export class MiseApp extends LitElement {
   declare course: string;
   declare courses: string[];
   declare courseDropdownOpen: boolean;
+  declare by: string;
+  declare authors: string[];
+  declare authorDropdownOpen: boolean;
   declare page: number;
   declare limit: number;
   declare pagination: Pagination;
@@ -89,11 +95,17 @@ export class MiseApp extends LitElement {
   declare apiError: string;
   private mediaQueryListener?: (e: MediaQueryListEvent) => void;
   private onDocumentClick = (e: MouseEvent) => {
+    const path = e.composedPath();
     if (this.courseDropdownOpen) {
-      const path = e.composedPath();
-      const dropdownEl = this.renderRoot?.querySelector('.course-dropdown');
+      const dropdownEl = this.renderRoot?.querySelector('.course-dropdown:not(.author-dropdown)');
       if (dropdownEl && !path.includes(dropdownEl)) {
         this.courseDropdownOpen = false;
+      }
+    }
+    if (this.authorDropdownOpen) {
+      const dropdownEl = this.renderRoot?.querySelector('.author-dropdown');
+      if (dropdownEl && !path.includes(dropdownEl)) {
+        this.authorDropdownOpen = false;
       }
     }
   };
@@ -109,6 +121,9 @@ export class MiseApp extends LitElement {
     this.course = '';
     this.courses = [];
     this.courseDropdownOpen = false;
+    this.by = '';
+    this.authors = [];
+    this.authorDropdownOpen = false;
     this.page = 1;
     this.limit = 10;
     this.pagination = { total: 0, page: 1, pages: 1 };
@@ -136,6 +151,7 @@ export class MiseApp extends LitElement {
       window.addEventListener('click', this.onDocumentClick);
     }
     void this.loadCourses();
+    void this.loadAuthors();
     void this.load();
   }
 
@@ -177,6 +193,13 @@ export class MiseApp extends LitElement {
       // Non-blocking if courses cannot be fetched
     }
   }
+  async loadAuthors() {
+    try {
+      this.authors = await api.authors();
+    } catch {
+      // Non-blocking if authors cannot be fetched
+    }
+  }
   async load() {
     this.loading = true;
     this.apiError = '';
@@ -184,6 +207,7 @@ export class MiseApp extends LitElement {
       const result = await api.list({
         query: this.query,
         course: this.course,
+        by: this.by,
         page: this.page,
         limit: this.limit,
       });
@@ -359,6 +383,7 @@ export class MiseApp extends LitElement {
       this.view = 'list';
       await this.load();
       void this.loadCourses();
+      void this.loadAuthors();
     } catch (e) {
       this.notify(e);
     }
@@ -380,6 +405,7 @@ export class MiseApp extends LitElement {
       }
       await this.load();
       void this.loadCourses();
+      void this.loadAuthors();
     } catch (e) {
       this.notify(e);
     }
@@ -404,7 +430,9 @@ export class MiseApp extends LitElement {
           @click=${() => {
             this.query = '';
             this.course = '';
+            this.by = '';
             this.courseDropdownOpen = false;
+            this.authorDropdownOpen = false;
             this.page = 1;
             this.view = 'list';
             void this.load();
@@ -489,6 +517,7 @@ export class MiseApp extends LitElement {
               @click=${(e: MouseEvent) => {
                 e.stopPropagation();
                 this.courseDropdownOpen = !this.courseDropdownOpen;
+                this.authorDropdownOpen = false;
               }}
               @keydown=${(e: KeyboardEvent) => {
                 if (e.key === 'Escape') {
@@ -566,6 +595,108 @@ export class MiseApp extends LitElement {
                             <span class="course-menu-item-content">
                               <span class="item-dot"></span>
                               <span>${c}</span>
+                            </span>
+                            ${isSelected ? html`<i class="ph ph-check item-check"></i>` : nothing}
+                          </button>
+                        `;
+                      })}
+                    </div>
+                  `
+                : nothing
+            }
+          </div>
+          <div
+            class="course-dropdown author-dropdown ${this.authorDropdownOpen ? 'is-open' : ''} ${
+              this.by ? 'has-value' : ''
+            }"
+          >
+            <button
+              type="button"
+              class="course-trigger"
+              aria-haspopup="listbox"
+              aria-expanded=${this.authorDropdownOpen}
+              aria-label="Filter by author"
+              @click=${(e: MouseEvent) => {
+                e.stopPropagation();
+                this.authorDropdownOpen = !this.authorDropdownOpen;
+                this.courseDropdownOpen = false;
+              }}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                  this.authorDropdownOpen = false;
+                }
+              }}
+            >
+              <i class="ph ph-user course-icon"></i>
+              <span class="course-label">${this.by || 'All authors'}</span>
+              <i class="ph ph-caret-down course-caret"></i>
+            </button>
+            ${
+              this.by
+                ? html`
+                    <button
+                      type="button"
+                      class="course-clear"
+                      aria-label="Clear author filter"
+                      title="Clear author filter"
+                      @click=${(e: MouseEvent) => {
+                        e.stopPropagation();
+                        this.by = '';
+                        this.authorDropdownOpen = false;
+                        this.page = 1;
+                        void this.load();
+                      }}
+                    >
+                      <i class="ph ph-x"></i>
+                    </button>
+                  `
+                : nothing
+            }
+            ${
+              this.authorDropdownOpen
+                ? html`
+                    <div class="course-menu" role="listbox" aria-label="Author filter options">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected=${!this.by}
+                        class="course-menu-item ${!this.by ? 'is-selected' : ''}"
+                        @click=${() => {
+                          this.by = '';
+                          this.authorDropdownOpen = false;
+                          this.page = 1;
+                          void this.load();
+                        }}
+                      >
+                        <span class="course-menu-item-content">
+                          <i class="ph ph-users-three item-icon"></i>
+                          <span>All authors</span>
+                        </span>
+                        ${!this.by ? html`<i class="ph ph-check item-check"></i>` : nothing}
+                      </button>
+                      ${
+                        this.authors.length > 0
+                          ? html`<div class="course-menu-separator"></div>`
+                          : nothing
+                      }
+                      ${this.authors.map((a) => {
+                        const isSelected = this.by === a;
+                        return html`
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected=${isSelected}
+                            class="course-menu-item ${isSelected ? 'is-selected' : ''}"
+                            @click=${() => {
+                              this.by = a;
+                              this.authorDropdownOpen = false;
+                              this.page = 1;
+                              void this.load();
+                            }}
+                          >
+                            <span class="course-menu-item-content">
+                              <span class="item-dot"></span>
+                              <span>${a}</span>
                             </span>
                             ${isSelected ? html`<i class="ph ph-check item-check"></i>` : nothing}
                           </button>
@@ -687,7 +818,7 @@ export class MiseApp extends LitElement {
                   </section>
                   ${this.renderPagination()}
                 `
-              : this.query || this.course
+              : this.query || this.course || this.by
                 ? html`<div class="empty-filter-state">
                     <i class="ph ph-funnel-x"></i>
                     <p>No recipes found matching your filters.</p>
@@ -697,6 +828,9 @@ export class MiseApp extends LitElement {
                       @click=${() => {
                         this.query = '';
                         this.course = '';
+                        this.by = '';
+                        this.courseDropdownOpen = false;
+                        this.authorDropdownOpen = false;
                         this.page = 1;
                         void this.load();
                       }}
@@ -1408,11 +1542,12 @@ export class MiseApp extends LitElement {
       align-items: center;
       gap: 14px;
       flex: 1;
-      max-width: 860px;
+      max-width: 1040px;
+      flex-wrap: wrap;
     }
     .search {
       flex: 1;
-      min-width: 220px;
+      min-width: 200px;
       height: 59px;
       display: flex;
       align-items: center;

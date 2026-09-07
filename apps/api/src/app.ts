@@ -84,6 +84,9 @@ export function createApp(
   app.get('/api/recipes/courses', async (c) =>
     c.json({ success: true, data: await service.getCourses() }),
   );
+  app.get('/api/recipes/authors', async (c) =>
+    c.json({ success: true, data: await service.getAuthors() }),
+  );
   app.post('/api/recipes', zValidator('json', createRecipeSchema, validation), async (c) =>
     c.json({ success: true, data: await service.createRecipe(c.req.valid('json')) }, 201),
   );

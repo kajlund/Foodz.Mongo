@@ -131,4 +131,56 @@ describe('api client', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/recipes/courses', expect.anything());
     expect(result).toEqual(courses);
   });
+
+  it('includes author (by) filter in query params when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [],
+        meta: { count: 0, pagination: { total: 0, page: 1, pages: 1 } },
+      }),
+    } as unknown as Response);
+
+    await api.list({ by: 'Alice' });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/recipes?page=1&limit=10&by=Alice',
+      expect.anything(),
+    );
+  });
+
+  it('combines search, course, and author filters', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [],
+        meta: { count: 0, pagination: { total: 0, page: 1, pages: 1 } },
+      }),
+    } as unknown as Response);
+
+    await api.list({ query: 'pie', course: 'Dessert', by: 'Alice' });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/recipes/search?page=1&limit=10&course=Dessert&by=Alice&q=pie',
+      expect.anything(),
+    );
+  });
+
+  it('fetches unique authors list via api.authors()', async () => {
+    const authors = ['Alice', 'Bob'];
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: authors,
+      }),
+    } as unknown as Response);
+
+    const result = await api.authors();
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/recipes/authors', expect.anything());
+    expect(result).toEqual(authors);
+  });
 });

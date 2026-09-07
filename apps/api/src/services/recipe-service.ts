@@ -24,6 +24,7 @@ export class RecipeService {
     userID?: string | undefined;
     tag?: string | undefined;
     course?: string | undefined;
+    by?: string | undefined;
     isPublic?: 'true' | 'false' | undefined;
     page: number;
     limit: number;
@@ -33,6 +34,7 @@ export class RecipeService {
     if (input.userID) query.userID = new Types.ObjectId(input.userID);
     if (input.tag) query.tags = input.tag;
     if (input.course) query.course = input.course;
+    if (input.by) query.by = input.by;
     if (input.isPublic !== undefined) query.isPublic = input.isPublic === 'true';
     const total = await this.repository.count(query);
     const recipes = await this.repository.find(query, {
@@ -48,6 +50,7 @@ export class RecipeService {
   async searchRecipes(input: {
     q: string;
     course?: string | undefined;
+    by?: string | undefined;
     page: number;
     limit: number;
   }) {
@@ -65,6 +68,7 @@ export class RecipeService {
       ],
     };
     if (input.course) query.course = input.course;
+    if (input.by) query.by = input.by;
     const total = await this.repository.count(query);
     const recipes = await this.repository.find(query, {
       sort: '-createdAt',
@@ -85,6 +89,16 @@ export class RecipeService {
       .filter((course): course is string => typeof course === 'string' && course.trim().length > 0)
       .map((course) => course.trim())
       .filter((course, index, array) => array.indexOf(course) === index)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }
+  async getAuthors(): Promise<string[]> {
+    const values = await this.repository.distinct('by', {
+      by: { $exists: true, $nin: ['', null] },
+    });
+    return (values as string[])
+      .filter((author): author is string => typeof author === 'string' && author.trim().length > 0)
+      .map((author) => author.trim())
+      .filter((author, index, array) => array.indexOf(author) === index)
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }
   async getRecipeById(id: string) {

@@ -10,6 +10,7 @@ import type {
 export interface RecipeListOptions {
   query?: string;
   course?: string;
+  by?: string;
   page?: number;
   limit?: number;
 }
@@ -38,6 +39,7 @@ export const api = {
     const opts = typeof options === 'string' ? { query: options } : options;
     const query = opts.query?.trim() ?? '';
     const course = opts.course?.trim() ?? '';
+    const by = opts.by?.trim() ?? '';
     const page = opts.page ?? 1;
     const limit = opts.limit ?? 10;
 
@@ -48,6 +50,9 @@ export const api = {
 
     if (course) {
       params.set('course', course);
+    }
+    if (by) {
+      params.set('by', by);
     }
 
     let path = '/api/recipes';
@@ -67,6 +72,10 @@ export const api = {
   },
   courses: async (): Promise<string[]> => {
     const res = await request<string[]>('/api/recipes/courses');
+    return res.data;
+  },
+  authors: async (): Promise<string[]> => {
+    const res = await request<string[]>('/api/recipes/authors');
     return res.data;
   },
   create: async (recipe: CreateRecipe) => {
