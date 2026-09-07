@@ -62,6 +62,9 @@ export class MiseApp extends LitElement {
     draft: { state: true },
     loading: { state: true },
     query: { state: true },
+    course: { state: true },
+    courses: { state: true },
+    courseDropdownOpen: { state: true },
     page: { state: true },
     limit: { state: true },
     pagination: { state: true },
@@ -75,6 +78,9 @@ export class MiseApp extends LitElement {
   declare draft: Draft;
   declare loading: boolean;
   declare query: string;
+  declare course: string;
+  declare courses: string[];
+  declare courseDropdownOpen: boolean;
   declare page: number;
   declare limit: number;
   declare pagination: Pagination;
@@ -82,6 +88,15 @@ export class MiseApp extends LitElement {
   declare message: string;
   declare apiError: string;
   private mediaQueryListener?: (e: MediaQueryListEvent) => void;
+  private onDocumentClick = (e: MouseEvent) => {
+    if (this.courseDropdownOpen) {
+      const path = e.composedPath();
+      const dropdownEl = this.renderRoot?.querySelector('.course-dropdown');
+      if (dropdownEl && !path.includes(dropdownEl)) {
+        this.courseDropdownOpen = false;
+      }
+    }
+  };
 
   constructor() {
     super();
@@ -91,6 +106,9 @@ export class MiseApp extends LitElement {
     this.draft = emptyDraft();
     this.loading = false;
     this.query = '';
+    this.course = '';
+    this.courses = [];
+    this.courseDropdownOpen = false;
     this.page = 1;
     this.limit = 10;
     this.pagination = { total: 0, page: 1, pages: 1 };
@@ -114,6 +132,10 @@ export class MiseApp extends LitElement {
         .matchMedia('(prefers-color-scheme: dark)')
         .addEventListener('change', this.mediaQueryListener);
     }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('click', this.onDocumentClick);
+    }
+    void this.loadCourses();
     void this.load();
   }
 
@@ -123,6 +145,9 @@ export class MiseApp extends LitElement {
       window
         .matchMedia('(prefers-color-scheme: dark)')
         .removeEventListener('change', this.mediaQueryListener);
+    }
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('click', this.onDocumentClick);
     }
   }
 
@@ -145,12 +170,20 @@ export class MiseApp extends LitElement {
     }
     this.applyTheme(next);
   }
+  async loadCourses() {
+    try {
+      this.courses = await api.courses();
+    } catch {
+      // Non-blocking if courses cannot be fetched
+    }
+  }
   async load() {
     this.loading = true;
     this.apiError = '';
     try {
       const result = await api.list({
         query: this.query,
+        course: this.course,
         page: this.page,
         limit: this.limit,
       });
@@ -325,6 +358,7 @@ export class MiseApp extends LitElement {
       }
       this.view = 'list';
       await this.load();
+      void this.loadCourses();
     } catch (e) {
       this.notify(e);
     }
@@ -345,6 +379,7 @@ export class MiseApp extends LitElement {
         this.page -= 1;
       }
       await this.load();
+      void this.loadCourses();
     } catch (e) {
       this.notify(e);
     }
@@ -368,6 +403,8 @@ export class MiseApp extends LitElement {
           class="brand"
           @click=${() => {
             this.query = '';
+            this.course = '';
+            this.courseDropdownOpen = false;
             this.page = 1;
             this.view = 'list';
             void this.load();
@@ -398,45 +435,148 @@ export class MiseApp extends LitElement {
 
   list() {
     return html` <section class="toolbar">
-        <label class="search"
-          ><i class="ph ph-magnifying-glass"></i
-          ><input
-            aria-label="Search recipes"
-            placeholder="Search recipes..."
-            .value=${this.query}
-            @input=${(e: Event) => {
-              this.query = (e.target as HTMLInputElement).value;
-            }}
-            @keydown=${(e: KeyboardEvent) => {
-              if (e.key === 'Enter') {
+        <div class="toolbar-filters">
+          <label class="search"
+            ><i class="ph ph-magnifying-glass"></i
+            ><input
+              aria-label="Search recipes"
+              placeholder="Search recipes..."
+              .value=${this.query}
+              @input=${(e: Event) => {
+                this.query = (e.target as HTMLInputElement).value;
+              }}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'Enter') {
+                  this.page = 1;
+                  void this.load();
+                }
+              }}
+              @change=${() => {
                 this.page = 1;
                 void this.load();
-              }
-            }}
-            @change=${() => {
-              this.page = 1;
-              void this.load();
-            }}
-          />
-          ${
-            this.query
-              ? html`
-                  <button
-                    type="button"
-                    class="search-clear"
-                    aria-label="Clear search"
-                    @click=${() => {
-                      this.query = '';
-                      this.page = 1;
-                      void this.load();
-                    }}
-                  >
-                    <i class="ph ph-x"></i>
-                  </button>
-                `
-              : nothing
-          }
-        </label>
+              }}
+            />
+            ${
+              this.query
+                ? html`
+                    <button
+                      type="button"
+                      class="search-clear"
+                      aria-label="Clear search"
+                      @click=${() => {
+                        this.query = '';
+                        this.page = 1;
+                        void this.load();
+                      }}
+                    >
+                      <i class="ph ph-x"></i>
+                    </button>
+                  `
+                : nothing
+            }
+          </label>
+          <div
+            class="course-dropdown ${this.courseDropdownOpen ? 'is-open' : ''} ${
+              this.course ? 'has-value' : ''
+            }"
+          >
+            <button
+              type="button"
+              class="course-trigger"
+              aria-haspopup="listbox"
+              aria-expanded=${this.courseDropdownOpen}
+              aria-label="Filter by course"
+              @click=${(e: MouseEvent) => {
+                e.stopPropagation();
+                this.courseDropdownOpen = !this.courseDropdownOpen;
+              }}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                  this.courseDropdownOpen = false;
+                }
+              }}
+            >
+              <i class="ph ph-fork-knife course-icon"></i>
+              <span class="course-label">${this.course || 'All courses'}</span>
+              <i class="ph ph-caret-down course-caret"></i>
+            </button>
+            ${
+              this.course
+                ? html`
+                    <button
+                      type="button"
+                      class="course-clear"
+                      aria-label="Clear course filter"
+                      title="Clear course filter"
+                      @click=${(e: MouseEvent) => {
+                        e.stopPropagation();
+                        this.course = '';
+                        this.courseDropdownOpen = false;
+                        this.page = 1;
+                        void this.load();
+                      }}
+                    >
+                      <i class="ph ph-x"></i>
+                    </button>
+                  `
+                : nothing
+            }
+            ${
+              this.courseDropdownOpen
+                ? html`
+                    <div class="course-menu" role="listbox" aria-label="Course filter options">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected=${!this.course}
+                        class="course-menu-item ${!this.course ? 'is-selected' : ''}"
+                        @click=${() => {
+                          this.course = '';
+                          this.courseDropdownOpen = false;
+                          this.page = 1;
+                          void this.load();
+                        }}
+                      >
+                        <span class="course-menu-item-content">
+                          <i class="ph ph-squares-four item-icon"></i>
+                          <span>All courses</span>
+                        </span>
+                        ${!this.course ? html`<i class="ph ph-check item-check"></i>` : nothing}
+                      </button>
+                      ${
+                        this.courses.length > 0
+                          ? html`<div class="course-menu-separator"></div>`
+                          : nothing
+                      }
+                      ${this.courses.map((c) => {
+                        const isSelected = this.course === c;
+                        return html`
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected=${isSelected}
+                            class="course-menu-item ${isSelected ? 'is-selected' : ''}"
+                            @click=${() => {
+                              this.course = c;
+                              this.courseDropdownOpen = false;
+                              this.page = 1;
+                              void this.load();
+                            }}
+                          >
+                            <span class="course-menu-item-content">
+                              <span class="item-dot"></span>
+                              <span>${c}</span>
+                            </span>
+                            ${isSelected ? html`<i class="ph ph-check item-check"></i>` : nothing}
+                          </button>
+                        `;
+                      })}
+                    </div>
+                  `
+                : nothing
+            }
+          </div>
+        </div>
         <button class="primary" @click=${() => this.edit()}>
           <i class="ph ph-plus"></i>New recipe
         </button>
@@ -547,7 +687,24 @@ export class MiseApp extends LitElement {
                   </section>
                   ${this.renderPagination()}
                 `
-              : html`<p class="empty">No recipes found. Add the first one!</p>`
+              : this.query || this.course
+                ? html`<div class="empty-filter-state">
+                    <i class="ph ph-funnel-x"></i>
+                    <p>No recipes found matching your filters.</p>
+                    <button
+                      type="button"
+                      class="clear-filters-btn"
+                      @click=${() => {
+                        this.query = '';
+                        this.course = '';
+                        this.page = 1;
+                        void this.load();
+                      }}
+                    >
+                      <i class="ph ph-arrow-counter-clockwise"></i>Clear filters
+                    </button>
+                  </div>`
+                : html`<p class="empty">No recipes found. Add the first one!</p>`
       }`;
   }
 
@@ -1242,12 +1399,20 @@ export class MiseApp extends LitElement {
     .toolbar {
       display: flex;
       justify-content: space-between;
-      gap: 2rem;
+      gap: 1.5rem;
       align-items: center;
       margin-bottom: 28px;
     }
+    .toolbar-filters {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+      max-width: 860px;
+    }
     .search {
-      width: min(580px, 52%);
+      flex: 1;
+      min-width: 220px;
       height: 59px;
       display: flex;
       align-items: center;
@@ -1296,6 +1461,231 @@ export class MiseApp extends LitElement {
     .search-clear i {
       margin: 0;
       font-size: 1.1rem;
+    }
+    .course-dropdown {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .course-trigger {
+      height: 59px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border-search);
+      background: var(--bg-search);
+      border-radius: 7px;
+      padding: 0 18px;
+      color: var(--muted);
+      box-shadow: var(--shadow-search);
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-weight: 500;
+      white-space: nowrap;
+      user-select: none;
+      transition:
+        border-color 0.15s,
+        background 0.15s,
+        box-shadow 0.15s,
+        color 0.15s;
+    }
+    .course-trigger:hover {
+      background: var(--bg-btn-hover);
+      border-color: var(--border-btn-hover);
+      color: var(--ink);
+    }
+    .course-dropdown.is-open .course-trigger {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px #de653733;
+      color: var(--ink);
+    }
+    .course-dropdown.has-value .course-trigger {
+      border-color: var(--primary);
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .course-dropdown.has-value .course-icon {
+      color: var(--primary);
+    }
+    .course-icon {
+      font-size: 1.25rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .course-label {
+      flex: 1;
+      text-align: left;
+    }
+    .course-caret {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-left: 2px;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .course-dropdown.is-open .course-caret {
+      transform: rotate(180deg);
+    }
+    .course-clear {
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      margin-left: 6px;
+      transition:
+        background 0.15s,
+        color 0.15s;
+    }
+    .course-clear:hover {
+      background: var(--bg-btn-hover);
+      color: var(--ink);
+    }
+    .course-clear i {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .course-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 230px;
+      max-width: 320px;
+      max-height: 340px;
+      overflow-y: auto;
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-btn-hover);
+      border-radius: 10px;
+      padding: 6px;
+      box-shadow:
+        0 12px 36px #00000028,
+        0 2px 6px #00000014;
+      z-index: 100;
+      animation: dropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .course-menu::-webkit-scrollbar {
+      width: 6px;
+    }
+    .course-menu::-webkit-scrollbar-thumb {
+      background: var(--line);
+      border-radius: 3px;
+    }
+    .course-menu-separator {
+      height: 1px;
+      background: var(--row-line);
+      margin: 4px 6px;
+    }
+    .course-menu-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      border-radius: 7px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+      transition:
+        background 0.12s,
+        color 0.12s;
+    }
+    .course-menu-item:hover {
+      background: var(--bg-btn-hover);
+    }
+    .course-menu-item.is-selected {
+      background: var(--category-bg);
+      color: var(--category-color);
+      font-weight: 600;
+    }
+    .course-menu-item-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .item-icon {
+      font-size: 1.1rem;
+      opacity: 0.75;
+      flex-shrink: 0;
+    }
+    .item-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      opacity: 0.45;
+      flex-shrink: 0;
+      transition:
+        background 0.12s,
+        opacity 0.12s;
+    }
+    .course-menu-item:hover .item-dot {
+      opacity: 0.9;
+    }
+    .course-menu-item.is-selected .item-dot {
+      background: var(--category-color);
+      opacity: 1;
+    }
+    .item-check {
+      font-size: 1.05rem;
+      color: var(--category-color);
+      flex-shrink: 0;
+    }
+    .empty-filter-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--muted);
+      background: var(--bg-card);
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      box-shadow: var(--table-shadow);
+    }
+    .empty-filter-state i.ph-funnel-x {
+      font-size: 2.6rem;
+      color: var(--muted);
+      opacity: 0.6;
+    }
+    .empty-filter-state p {
+      margin: 0;
+      font-size: 1.1rem;
+      color: var(--ink);
+    }
+    .clear-filters-btn {
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
     }
     button {
       border: 1px solid var(--border-btn);
@@ -2061,9 +2451,26 @@ export class MiseApp extends LitElement {
         flex-direction: column;
         gap: 12px;
       }
+      .toolbar-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        width: 100%;
+      }
       .search {
         width: 100%;
         height: 54px;
+      }
+      .course-dropdown {
+        width: 100%;
+      }
+      .course-trigger {
+        width: 100%;
+        height: 54px;
+      }
+      .course-menu {
+        width: 100%;
+        max-width: 100%;
       }
       .primary {
         width: 100%;

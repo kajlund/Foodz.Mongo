@@ -79,4 +79,56 @@ describe('api client', () => {
       expect.anything(),
     );
   });
+
+  it('includes course filter in query params when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [],
+        meta: { count: 0, pagination: { total: 0, page: 1, pages: 1 } },
+      }),
+    } as unknown as Response);
+
+    await api.list({ course: 'Dessert' });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/recipes?page=1&limit=10&course=Dessert',
+      expect.anything(),
+    );
+  });
+
+  it('includes both query and course filter when searching', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [],
+        meta: { count: 0, pagination: { total: 0, page: 1, pages: 1 } },
+      }),
+    } as unknown as Response);
+
+    await api.list({ query: 'pie', course: 'Dessert' });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/recipes/search?page=1&limit=10&course=Dessert&q=pie',
+      expect.anything(),
+    );
+  });
+
+  it('fetches unique courses list via api.courses()', async () => {
+    const courses = ['Breakfast', 'Dessert', 'Dinner'];
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: courses,
+      }),
+    } as unknown as Response);
+
+    const result = await api.courses();
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/recipes/courses', expect.anything());
+    expect(result).toEqual(courses);
+  });
 });

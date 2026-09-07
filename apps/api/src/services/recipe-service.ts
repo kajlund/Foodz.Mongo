@@ -23,6 +23,7 @@ export class RecipeService {
   async getRecipes(input: {
     userID?: string | undefined;
     tag?: string | undefined;
+    course?: string | undefined;
     isPublic?: 'true' | 'false' | undefined;
     page: number;
     limit: number;
@@ -31,6 +32,7 @@ export class RecipeService {
     const query: FilterQuery<RecipeDocument> = {};
     if (input.userID) query.userID = new Types.ObjectId(input.userID);
     if (input.tag) query.tags = input.tag;
+    if (input.course) query.course = input.course;
     if (input.isPublic !== undefined) query.isPublic = input.isPublic === 'true';
     const total = await this.repository.count(query);
     const recipes = await this.repository.find(query, {
@@ -43,7 +45,12 @@ export class RecipeService {
       pagination: { total, page: input.page, pages: Math.ceil(total / input.limit) || 1 },
     };
   }
-  async searchRecipes(input: { q: string; page: number; limit: number }) {
+  async searchRecipes(input: {
+    q: string;
+    course?: string | undefined;
+    page: number;
+    limit: number;
+  }) {
     const escaped = input.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const value = new RegExp(escaped, 'i');
     const query: FilterQuery<RecipeDocument> = {
@@ -57,6 +64,7 @@ export class RecipeService {
         { by: value },
       ],
     };
+    if (input.course) query.course = input.course;
     const total = await this.repository.count(query);
     const recipes = await this.repository.find(query, {
       sort: '-createdAt',
@@ -68,6 +76,16 @@ export class RecipeService {
       query: input.q,
       pagination: { total, page: input.page, pages: Math.ceil(total / input.limit) || 1 },
     };
+  }
+  async getCourses(): Promise<string[]> {
+    const values = await this.repository.distinct('course', {
+      course: { $exists: true, $nin: ['', null] },
+    });
+    return (values as string[])
+      .filter((course): course is string => typeof course === 'string' && course.trim().length > 0)
+      .map((course) => course.trim())
+      .filter((course, index, array) => array.indexOf(course) === index)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }
   async getRecipeById(id: string) {
     this.id(id);

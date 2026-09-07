@@ -9,6 +9,7 @@ import type {
 
 export interface RecipeListOptions {
   query?: string;
+  course?: string;
   page?: number;
   limit?: number;
 }
@@ -36,6 +37,7 @@ export const api = {
   list: async (options: string | RecipeListOptions = {}): Promise<RecipeListResult> => {
     const opts = typeof options === 'string' ? { query: options } : options;
     const query = opts.query?.trim() ?? '';
+    const course = opts.course?.trim() ?? '';
     const page = opts.page ?? 1;
     const limit = opts.limit ?? 10;
 
@@ -43,6 +45,10 @@ export const api = {
       page: String(page),
       limit: String(limit),
     });
+
+    if (course) {
+      params.set('course', course);
+    }
 
     let path = '/api/recipes';
     if (query) {
@@ -58,6 +64,10 @@ export const api = {
     };
 
     return { recipes: res.data, pagination };
+  },
+  courses: async (): Promise<string[]> => {
+    const res = await request<string[]>('/api/recipes/courses');
+    return res.data;
   },
   create: async (recipe: CreateRecipe) => {
     const res = await request<Recipe>('/api/recipes', {

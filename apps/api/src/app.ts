@@ -81,6 +81,9 @@ export function createApp(
       meta: { count: result.recipes.length, pagination: result.pagination },
     });
   });
+  app.get('/api/recipes/courses', async (c) =>
+    c.json({ success: true, data: await service.getCourses() }),
+  );
   app.post('/api/recipes', zValidator('json', createRecipeSchema, validation), async (c) =>
     c.json({ success: true, data: await service.createRecipe(c.req.valid('json')) }, 201),
   );

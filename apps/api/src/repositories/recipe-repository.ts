@@ -15,6 +15,7 @@ export interface RecipeRepository {
   findById(id: string): Promise<RecipeHydratedDocument | null>;
   update(id: string, data: UpdateQuery<RecipeDocument>): Promise<RecipeHydratedDocument | null>;
   delete(id: string): Promise<RecipeHydratedDocument | null>;
+  distinct(field: string, query?: FilterQuery<RecipeDocument>): Promise<unknown[]>;
 }
 export const recipeRepository: RecipeRepository = {
   create: (data) => RecipeModel.create(data),
@@ -25,4 +26,5 @@ export const recipeRepository: RecipeRepository = {
   update: (id, data) =>
     RecipeModel.findByIdAndUpdate(id, data, { new: true, runValidators: true }).exec(),
   delete: (id) => RecipeModel.findByIdAndDelete(id).exec(),
+  distinct: (field, query = {}) => RecipeModel.distinct(field, query).exec(),
 };
