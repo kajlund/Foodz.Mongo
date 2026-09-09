@@ -11,7 +11,7 @@ function checkPort(host, port) {
       if (error.code === 'EADDRINUSE') {
         reject(
           new Error(
-            `Port ${port} is already in use on ${host}. Stop the previous Mise dev task and run pnpm dev again.`,
+            `Port ${port} is already in use on ${host}. Stop the previous Mise dev task and run npm run dev again.`,
           ),
         );
         return;
